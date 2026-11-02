@@ -1,4 +1,4 @@
-#Reservoir Lithology Identification Using Advanced Intelligent Algorithms
+Reservoir Lithology Identification Using Advanced Intelligent Algorithms
 
 This repository contains the code used in the submission for Computers & Geosciences.
 
