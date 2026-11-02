@@ -1,4 +1,4 @@
-# Survival Analysis-powered AI in Risk-aware Data-driven Multi-objective Optimization for Geological CO<sub>2</sub> Storage
+# Reservoir Lithology Identification Using Advanced Intelligent Algorithms
 
 This repository contains the code used in the submission for [Computers & Geosciences](https://www.sciencedirect.com/journal/computers-and-geosciences).
 
