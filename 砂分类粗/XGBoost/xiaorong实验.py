@@ -1,10 +1,4 @@
-# -*- coding: utf-8 -*-
-"""
-XGBoost岩性识别 超参数消融实验【精简版：无基线，仅5组消融】
-输出全部保存到 F:\消融实验\XGB
-Exp1~Exp5 依次固定一个超参数为基准中间值，其余4维笛卡尔网格搜索
-输出：每组寻优汇总Excel；总耗时汇总Ablation_Time_Summary.csv
-"""
+
 import os
 import time
 import pandas as pd
@@ -16,13 +10,13 @@ from sklearn.preprocessing import LabelEncoder
 from sklearn.metrics import accuracy_score, f1_score
 warnings.filterwarnings("ignore")
 
-# ====================== 配置区 ======================
-# 数据文件仍然在桌面
+
+
 TRAIN_PATH = r"C:\Users\Qsz53\Desktop\训练集.xlsx"
 VAL_PATH   = r"C:\Users\Qsz53\Desktop\验证集.xlsx"
 TEST_PATH  = r"C:\Users\Qsz53\Desktop\测试集.xlsx"
 
-# 输出保存目录
+
 OUT_DIR = r"F:\消融实验\XGB"
 if not os.path.exists(OUT_DIR):
     os.makedirs(OUT_DIR)
@@ -33,7 +27,7 @@ target_col = "岩性"
 RANDOM_SEED = 42
 early_stop_round = 20
 
-# 基准中间值（消融固定值）
+
 base_fix = {
     "max_depth": 5,
     "learning_rate": 0.08,
@@ -42,7 +36,7 @@ base_fix = {
     "colsample_bytree": 0.75
 }
 
-# 5组消融实验配置：固定一个参数，其余4维搜索
+
 exp_setting_list = [
     {
         "exp_id": "Exp1",
@@ -101,7 +95,7 @@ exp_setting_list = [
     }
 ]
 
-# ============ 读取并预处理数据（一次完成，所有实验共用）============
+
 train_df = pd.read_excel(TRAIN_PATH)
 val_df   = pd.read_excel(VAL_PATH)
 test_df  = pd.read_excel(TEST_PATH)
@@ -122,10 +116,10 @@ for c in cat_cols:
     X_test[c]  = X_test[c].astype("category")
 num_class = len(le.classes_)
 
-# 总汇总：记录每组寻优耗时
+
 time_summary = []
 
-# ============ 循环跑5组消融实验 ============
+
 for exp_cfg in exp_setting_list:
     exp_id = exp_cfg["exp_id"]
     exp_note = exp_cfg["exp_note"]
@@ -178,11 +172,11 @@ for exp_cfg in exp_setting_list:
 
     search_elapsed = time.perf_counter() - search_start
 
-    # 输出本组寻优汇总Excel
+
     out_excel = os.path.join(OUT_DIR, f"{exp_id}_{exp_note}_寻优汇总.xlsx")
     pd.DataFrame(res_grid_list).to_excel(out_excel, index=False)
 
-    # 记录本组网格搜索耗时
+
     time_summary.append({
         "exp_id": exp_id,
         "exp_note": exp_note,
@@ -198,7 +192,7 @@ for exp_cfg in exp_setting_list:
     print(f"   最优验证Macro‑F1：{best_val_macro_f1:.4f}；最优参数：{best_search_params}")
     print(f"   ✅寻优汇总已保存：{out_excel}")
 
-# ============ 输出最终总耗时汇总csv ============
+
 df_time = pd.DataFrame(time_summary)
 summary_csv_path = os.path.join(OUT_DIR, "Ablation_Time_Summary.csv")
 df_time.to_csv(summary_csv_path, index=False, encoding="utf-8-sig")
