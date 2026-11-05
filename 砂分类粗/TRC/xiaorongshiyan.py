@@ -1,22 +1,5 @@
-# -*- coding: utf-8 -*-
-"""
-FT‑Transformer + TRC 完整消融实验
-7组消融：固定一维FT超参，剩余6维网格搜索；选出本组最优FT后冻结主干再训练TRC矫正头；
-每组输出：寻优汇总Excel(多sheet：FT参数汇总+每个参数epoch历史 +【本组最优‑FT‑TRC结果】sheet)
-全局输出 Ablation_FT_TRC_Summary.csv，记录FT与FT+TRC两组验证指标、各组耗时
-仅使用train/val数据集；不访问测试集，不绘图；范式对齐XGB/LGBM消融
-基准中心点：
-base_fix = {
-    "d_token":32,
-    "n_blocks":2,
-    "n_heads":4,
-    "lr":5e-4,
-    "attn_drop":0.05,
-    "ffn_drop":0.05,
-    "wd":1e-4
-}
-输出目录 F:\消融实验\FT_TRC_Full
-"""
+
+
 import os
 import time
 import itertools
@@ -31,7 +14,7 @@ from sklearn.metrics import accuracy_score, f1_score
 import warnings
 warnings.filterwarnings("ignore")
 
-# ====================== 【配置区】 ======================
+
 TRAIN_PATH = r"C:\Users\Qsz53\Desktop\训练集.xlsx"
 VAL_PATH   = r"C:\Users\Qsz53\Desktop\验证集.xlsx"
 TEST_PATH  = r"C:\Users\Qsz53\Desktop\测试集.xlsx"
@@ -47,7 +30,7 @@ PATIENCE   = 12
 TRC_EPOCHS = 60
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
-# ====================== 网络模块定义 FT‑Transformer + TRC矫正头 ======================
+
 class FTTransformerBlock(nn.Module):
     def __init__(self, d_token, n_heads, attn_drop, ffn_drop):
         super().__init__()
@@ -121,7 +104,7 @@ class FT_TRC_Model(nn.Module):
         z_corr = self.trc(emb)
         return self.head(z_corr), z_corr
 
-# ====================== Dataset ======================
+
 class LogDataset(Dataset):
     def __init__(self, X_num, y):
         self.X_num = torch.FloatTensor(X_num)
@@ -131,7 +114,7 @@ class LogDataset(Dataset):
     def __getitem__(self, idx):
         return self.X_num[idx], self.y[idx]
 
-# ====================== 数据加载 ======================
+
 def load_data():
     df_train = pd.read_excel(TRAIN_PATH)
     df_val   = pd.read_excel(VAL_PATH)
@@ -163,7 +146,7 @@ unique, counts = np.unique(y_train, return_counts=True)
 total = np.sum(counts)
 soft_weight = torch.tensor(np.log1p(total/counts), dtype=torch.float32).to(device)
 
-# ====================== 评估工具函数 ======================
+
 def evaluate_model(model, loader, is_trc=False):
     model.eval()
     y_true, y_pred = [], []
@@ -181,7 +164,7 @@ def evaluate_model(model, loader, is_trc=False):
     f1_macro = f1_score(y_true,y_pred,average="macro")
     return acc, f1_macro
 
-# ====================== FT主干训练函数 ======================
+
 def train_ft_only(params):
     start_t = time.perf_counter()
     ft = FTTransformer(len(num_cols), n_classes,
@@ -241,7 +224,7 @@ def train_ft_only(params):
     cost = time.perf_counter() - start_t
     return best_ft, params, epoch_history, best_val_f1, cost
 
-# ====================== 在给定最优FT基础上冻结主干，训练TRC矫正头 ======================
+
 def train_trc_on_frozen_ft(ft_base, embed_dim):
     t0 = time.perf_counter()
     for p in ft_base.parameters():
@@ -262,7 +245,7 @@ def train_trc_on_frozen_ft(ft_base, embed_dim):
     trc_val_acc, trc_val_f1     = evaluate_model(ft_trc, val_loader,   is_trc=True)
     return ft_trc, trc_cost, trc_train_acc, trc_train_f1, trc_val_acc, trc_val_f1
 
-# ====================== 消融实验配置定义 ======================
+
 base_fix = {
     "d_token":32,
     "n_blocks":2,
@@ -327,7 +310,7 @@ exp_setting_list = [
     }
 ]
 
-# ====================== 主循环执行7组完整消融（FT网格搜索 +本组最优FT再训练TRC） ======================
+
 global_summary_list = []
 
 for exp_cfg in exp_setting_list:
@@ -371,13 +354,13 @@ for exp_cfg in exp_setting_list:
             print(f"❌本组参数训练异常跳过，error:{e}")
 
     grid_search_elapsed = time.perf_counter() - search_start
-    # --------基于本组最优FT，冻结主干训练TRC矫正头--------
+
     embed_dim = best_param_exp["d_token"]
     ft_trc_model, trc_cost, trc_tr_acc, trc_tr_f1, trc_val_acc, trc_val_f1 = train_trc_on_frozen_ft(best_ft_model_exp, embed_dim)
     ft_tr_acc, ft_tr_f1 = evaluate_model(best_ft_model_exp, train_loader, is_trc=False)
     ft_val_acc, ft_val_f1 = evaluate_model(best_ft_model_exp, val_loader, is_trc=False)
 
-    # 构造本组FT‑TRC结果sheet的数据
+
     result_local_df = pd.DataFrame([
         {"model_type":"FT‑Transformer",
          "train_acc":ft_tr_acc,"train_f1":ft_tr_f1,
@@ -389,7 +372,7 @@ for exp_cfg in exp_setting_list:
          "params":str(best_param_exp)+"+TRC"}
     ])
 
-    # --------保存本组Excel（新增sheet：本组最优‑FT‑TRC结果）--------
+ 
     out_excel = os.path.join(OUT_DIR, f"{exp_id}_{exp_note}_寻优汇总.xlsx")
     sum_cols = list(full_candidate.keys()) + ["train_acc","train_f1","val_f1","best_epoch","param_train_time_s"]
     with pd.ExcelWriter(out_excel, engine="openpyxl") as writer:
@@ -414,7 +397,7 @@ for exp_cfg in exp_setting_list:
     print(f"✅FT val‑F1 {ft_val_f1:.4f} | FT+TRC val‑F1 {trc_val_f1:.4f}")
     print(f"✅保存文件 {out_excel}")
 
-# =========输出全局汇总csv============
+
 df_global = pd.DataFrame(global_summary_list)
 csv_out = os.path.join(OUT_DIR, "Ablation_FT_TRC_Summary.csv")
 df_global.to_csv(csv_out, index=False, encoding="utf‑8‑sig")
