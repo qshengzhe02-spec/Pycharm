@@ -1,20 +1,13 @@
 # Reservoir Lithology Identification Using Advanced Intelligent Algorithms
 
-This repository contains the code used in the submission for [Computers & Geosciences](https://www.sciencedirect.com/journal/computers-and-geosciences).
+Code execution examples can be found in the following files: TabPFN2, TabPFN3, XGB720, light, and xintrc.
 
-Examples of how to run the code can be seen in the files [main_surrogate](src/main_surrogate.py) and [main_optimization](src/main_optimization.py).
+The files TabPFN2 and TabPFN3 use TabPFN classifiers to train lithology identification models and optimize the n_estimators hyperparameter. They implement missing-value imputation, feature standardization, and categorical encoding. The scripts automatically generate an Excel report summarizing the optimization results, confusion matrix images, the optimal model files, and prediction results for the test set.
+The file XGB720 performs exhaustive Cartesian grid search for XGBoost hyperparameter tuning, covering a total of 720 parameter combinations. An early-stopping strategy is employed to prevent overfitting. The script generates a summary of the grid search results, confusion matrix plots, feature importance plots, test-set prediction files, and experimental timing records.
+The file light performs multiclass grid search for LightGBM, evaluating all parameter combinations and capturing training exceptions. It generates an Excel report of the optimization results and confusion matrix images, while recording the time required for grid search and test-set inference.
+The file xintrc implements the FT-Transformer+TRC model with a representation correction module. Hyperparameter grid search is performed to identify the optimal FT backbone network. The backbone is then frozen, and the TRC correction head is trained. Evaluation metrics are generated separately for the original FT-Transformer and FT-Transformer+TRC models. The script also saves confusion matrix images and comprehensive experimental timing records.
 
-- The file [main_surrogate](src/main_surrogate.py) calls the [SurrogateTrainingManager](src/SurrogateTrainingManager.py) to train the Cox Proportional Hazards surrogate.
-It also allows for the deliberate truncation of the dataset through the `truncate_data` function.
-The dataset used in the paper can be found in the assets of the latest release of this repository.
+The ablation experiment scripts, including xiaorong实验, 消融, and xiaorongshiyan, are designed for XGBoost, LightGBM, and FT-Transformer+TRC, respectively. These scripts conduct controlled ablation experiments by fixing one hyperparameter at a time while performing grid search over the remaining hyperparameters. An optimization summary table is generated for each experiment, together with a CSV file summarizing the total execution time of all ablation experiments.
 
-- The file [main_optimization](src/main_optimization.py) calls the [OptimizationManager](src/OptimizationManager.py) to run the optimization.
-Depending on whether a `trained_model_path` was given, it then calls either the [SurrogateProblem](src/ProblemManager/SurrogateProblem.py) or the [SimulationProblem](src/ProblemManager/SimulationProblem.py).
-It also plots results through `plot_results`, and allows for the simulation of the final Pareto front (in the case of surrogate-guided optimization) through `simulate_pareto_front`.
-
-The packages necessary for our code can be found in the [requirements](requirements.txt) file.
-We fix the versions that we used to run the experiments; one may remove the specific versions if so desired.
-The data used to train the surrogates can be found in the assets of the latest [release](https://github.com/agurwicz/sa-surrogate-multiobjective-optimization/releases) of this repository.
-
-We have run the experiments for the paper on an Apple MacBook Pro, with the Apple M3 Max and 96 GB of memory.
-To run the commercial reservoir simulations, we developed [github.com/agurwicz/cmg-macos](https://github.com/agurwicz/cmg-macos).
+The dependencies required for this project are listed in the requirements file, which specifies the library versions used in the experiments reported in this paper.
+All numerical experiments in this study were conducted on the Windows platform. The hardware configuration consisted of an AMD Ryzen 5 5600H processor (3.30 GHz) and 16 GB of RAM. The FT-TRC deep learning model supports GPU acceleration, whereas TabPFN, XGBoost, and LightGBM can run on the CPU.
