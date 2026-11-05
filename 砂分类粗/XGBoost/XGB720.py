@@ -1,10 +1,4 @@
-# -*- coding: utf-8 -*-
-"""
-XGBoost 岩性多分类【完整笛卡尔网格搜索 扩充参数720组 + 计时】
-固定划分：训练集.xlsx / 验证集.xlsx / 测试集.xlsx
-计时：1)网格参数搜索总耗时 2)最优模型测试集评估耗时
-输出文件全新命名，不和旧版本冲突
-"""
+
 import time
 import pandas as pd
 import numpy as np
@@ -21,7 +15,7 @@ from itertools import product
 
 warnings.filterwarnings("ignore")
 
-# ====================== 配置区 ======================
+
 TRAIN_PATH = r"C:\Users\Qsz53\Desktop\训练集.xlsx"
 VAL_PATH   = r"C:\Users\Qsz53\Desktop\验证集.xlsx"
 TEST_PATH  = r"C:\Users\Qsz53\Desktop\测试集.xlsx"
@@ -31,7 +25,7 @@ cat_cols  = ["井名", "层位"]
 target_col = "岩性"
 RANDOM_SEED = 42
 
-# ===================== 【扩充后参数空间，共720组】=====================
+
 param_space = {
     "max_depth": [3, 4, 5, 6, 7],
     "learning_rate": [0.04, 0.06, 0.08, 0.10],
@@ -41,19 +35,19 @@ param_space = {
 }
 early_stop_round = 20
 
-# 生成全部笛卡尔组合
+
 keys = list(param_space.keys())
 values_list = list(param_space.values())
 all_param_combinations = [dict(zip(keys, items)) for items in product(*values_list)]
 print(f"✅扩充网格，总待运行参数组合数量：{len(all_param_combinations)}")
-# ======================================================================
 
-# 读取数据
+
+
 train_df = pd.read_excel(TRAIN_PATH)
 val_df   = pd.read_excel(VAL_PATH)
 test_df  = pd.read_excel(TEST_PATH)
 
-# ========== 检测训练集与测试集井重叠，判断数据泄露 ==========
+
 train_wells = set(train_df["井名"].unique())
 test_wells = set(test_df["井名"].unique())
 overlap_wells = test_wells.intersection(train_wells)
@@ -65,7 +59,7 @@ if len(overlap_wells) > 0:
     print("⚠️警告：训练集和测试集存在同一口井！存在数据泄露，测试集指标虚高，新井泛化差！")
 print("="*60)
 
-# 标签编码
+
 le = LabelEncoder()
 all_labels = pd.concat([train_df[target_col], val_df[target_col], test_df[target_col]])
 le.fit(all_labels)
@@ -85,7 +79,7 @@ for c in cat_cols:
 
 num_class = len(le.classes_)
 
-# ====================== 完整网格搜索循环遍历全部720组【计时开始】 ======================
+
 result_list = []
 best_val_macro_f1 = -1.0
 best_model = None
@@ -140,14 +134,14 @@ print(f"⏱️ 扩充网格参数搜索总耗时：{search_elapsed:.2f} 秒 "
       f"（约 {search_elapsed/60:.2f} 分钟），共 {len(all_param_combinations)} 组")
 print("="*60)
 
-# ====================== 保存网格搜索全部结果【全新文件名】 ======================
+
 df_grid_result = pd.DataFrame(result_list)
 df_grid_result.to_excel(r"C:\Users\Qsz53\Desktop\XGBoost_ExpandGrid_720组寻优汇总.xlsx", index=False)
 print("\n✅720组扩充网格搜索结果保存：XGBoost_ExpandGrid_720组寻优汇总.xlsx")
 print(f"✅最优参数组合：{best_params}")
 print(f"✅最优验证集Macro-F1: {best_val_macro_f1:.4f}")
 
-# ====================== 最优模型在独立测试集评估【计时】 ======================
+
 print("\n" + "="*50)
 print("==== 最优XGBoost模型【测试集】评价 ====")
 
@@ -163,7 +157,7 @@ print(f"Macro-F1  : {macro_f1:.4f}")
 print(f"⏱️ 最优参数模型测试集评估耗时：{test_elapsed:.4f} 秒")
 print("="*50)
 
-# 混淆矩阵
+
 cm = confusion_matrix(y_test, y_pred)
 plt.figure(figsize=(9, 7))
 sns.heatmap(cm, annot=True, fmt="d", cmap="Blues",
@@ -175,12 +169,12 @@ plt.tight_layout()
 plt.savefig(r"C:\Users\Qsz53\Desktop\xgb_expandgrid_best_confusion_matrix.png", dpi=200)
 plt.close()
 
-# 测试集预测结果
+
 test_df["pred_xgb_expandgrid_best"] = le.inverse_transform(y_pred)
 test_df.to_csv(r"C:\Users\Qsz53\Desktop\xgb_expandgrid_best_test_pred.csv",
                index=False, encoding="utf-8-sig")
 
-# 保存指标+耗时
+
 res_df = pd.DataFrame([{
     "model": "XGBoost_ExpandGrid_720",
     "acc": acc,
@@ -193,7 +187,7 @@ res_df = pd.DataFrame([{
 res_df.to_csv(r"C:\Users\Qsz53\Desktop\xgb_expandgrid_best_result.csv",
               index=False, encoding="utf-8-sig")
 
-# 特征重要性
+
 plt.figure(figsize=(10, 6))
 feature_names = list(X_train.columns)
 fi = pd.Series(best_model.feature_importances_, index=feature_names).sort_values(ascending=False)
