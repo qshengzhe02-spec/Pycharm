@@ -1,6 +1,6 @@
-# ====================== 【前置依赖】确保所有库已导入 ======================
+
 import os
-import time  # ★ 新增：计时模块
+import time
 import warnings
 import numpy as np
 import openpyxl
@@ -18,7 +18,7 @@ os.environ["TABPFN_TOKEN"] = "tabpfn_sk_35sKmzi0JxlITK4jRSRQF9wLjGvZObYWtZo6qs4t
 
 warnings.filterwarnings("ignore")
 
-# ====================== 【配置区】和你原代码保持一致 ======================
+
 TRAIN_PATH = r"C:\Users\Qsz53\Desktop\训练集.xlsx"
 VAL_PATH   = r"C:\Users\Qsz53\Desktop\验证集.xlsx"
 TEST_PATH  = r"C:\Users\Qsz53\Desktop\测试集.xlsx"
@@ -27,12 +27,12 @@ num_cols   = ["GR", "CAL", "SP", "AC", "DEN", "CNL", "RD", "U", "K"]
 cat_cols   = ["井名", "层位"]
 target_col = "岩性"
 
-# ★ 修改点1：n_estimators候选值增加（原来[1,3,5,10]，现在6个）
-N_ESTIMATORS_CANDIDATES = [1, 2, 3, 5, 8, 10]
+
+N_ESTIMATORS_CANDIDATES = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]
 RANDOM_STATE = 42
 DEVICE = "cpu"
 
-# ====================== 【Excel格式化工具函数】完整兼容版 ======================
+
 def display_width(text):
     if text is None:
         return 0
@@ -144,7 +144,7 @@ def build_excel_sheet(wb, sheet_name, headers, rows, title, pct_cols=(), int_col
     auto_fit_columns(ws, min_w=12, max_w=42, padding=3)
     return ws
 
-# ====================== 【数据读取+预处理】和你原代码保持一致 ======================
+
 def load_and_validate(path, required_cols, df_name):
     df = pd.read_excel(path)
     missing = [c for c in required_cols if c not in df.columns]
@@ -197,12 +197,12 @@ else:
 
 print(f"\n特征维度｜训练:{X_train.shape}｜验证:{X_val.shape}｜测试:{X_test.shape}")
 
-# ====================== 【TabPFN-3自动寻优】★计时开始 ======================
+
 print("\n===== 【TabPFN-3】开始自动寻优 =====")
 print(f"候选 n_estimators: {N_ESTIMATORS_CANDIDATES}")
 tuning_results = []
 
-search_start = time.perf_counter()   # ★ 计时起点：自动寻优
+search_start = time.perf_counter()
 
 for n in N_ESTIMATORS_CANDIDATES:
     print(f"\n训练 n_estimators = {n}")
@@ -228,7 +228,7 @@ for n in N_ESTIMATORS_CANDIDATES:
     })
     print(f"训练Acc:{train_acc:.4f}｜验证Acc:{val_acc:.4f}｜验证Macro-F1:{val_f1:.4f}")
 
-search_elapsed = time.perf_counter() - search_start   # ★ 计时终点：自动寻优
+search_elapsed = time.perf_counter() - search_start
 
 tuning_df = pd.DataFrame(tuning_results).sort_values("val_f1", ascending=False).reset_index(drop=True)
 print("\n===== TabPFN-3 寻优汇总表 =====")
@@ -238,7 +238,7 @@ best_n = int(best_params["n_estimators"])
 print(f"\n✅ TabPFN-3最优配置 n_estimators={best_n}｜验证F1={best_params['val_f1']:.4f}")
 print(f"⏱️ 自动寻优（{len(N_ESTIMATORS_CANDIDATES)}个候选）总耗时：{search_elapsed:.2f} 秒（约 {search_elapsed/60:.2f} 分钟）")
 
-# ====================== 【最优模型训练+全量预测】核心步骤 ======================
+
 final_clf = TabPFNClassifier(
     device=DEVICE,
     n_estimators=best_n,
@@ -249,11 +249,11 @@ final_clf.fit(X_train, y_train)
 y_train_pred_final = final_clf.predict(X_train)
 y_val_pred_final   = final_clf.predict(X_val)
 
-test_start = time.perf_counter()   # ★ 计时起点：测试集评估
+test_start = time.perf_counter()
 y_test_pred_final  = final_clf.predict(X_test)
-test_elapsed = time.perf_counter() - test_start   # ★ 计时终点：测试集评估
+test_elapsed = time.perf_counter() - test_start
 
-# ====================== 【指标计算】兼容新旧sklearn，无KeyError ======================
+
 def calc_metrics(y_true, y_pred, name=""):
     acc = accuracy_score(y_true, y_pred)
     f1_macro = f1_score(y_true, y_pred, average="macro", zero_division=0)
@@ -267,7 +267,7 @@ acc_val,   f1_val   = calc_metrics(y_val,   y_val_pred_final,   "验证")
 acc_test,  f1_test  = calc_metrics(y_test,  y_test_pred_final,  "测试")
 print(f"⏱️ 最优模型测试集评估耗时：{test_elapsed:.4f} 秒")
 
-# 分类报告：兼容新旧sklearn，无KeyError
+
 cr_dict = classification_report(
     y_test, y_test_pred_final,
     target_names=le.classes_,
@@ -277,12 +277,12 @@ cr_dict = classification_report(
 print("\n==== TabPFN-3 测试集分类报告 ====")
 print(classification_report(y_test, y_test_pred_final, target_names=le.classes_, zero_division=0))
 
-# 混淆矩阵
+
 cm = confusion_matrix(y_test, y_test_pred_final)
 print("\n==== TabPFN-3 测试集混淆矩阵 ====")
 print(cm)
 
-# ===================== 新增：混淆矩阵改为图片 =====================
+
 import matplotlib.pyplot as plt
 import seaborn as sns
 
@@ -301,7 +301,7 @@ plt.savefig(r"C:\Users\Qsz53\Desktop\TabPFN3_混淆矩阵.png", bbox_inches="tig
 plt.close()
 print("✅ 混淆矩阵图片已保存：TabPFN3_混淆矩阵.png")
 
-# ====================== 【结果保存】模型+预测表 ======================
+
 joblib.dump(final_clf, "TabPFN3_最优岩性模型.pkl")
 print("\n✅ 模型保存：TabPFN3_最优岩性模型.pkl")
 
@@ -311,11 +311,11 @@ test_result_df["预测正确"] = test_result_df["岩性"] == test_result_df["预
 test_result_df.to_excel("TabPFN3_测试集预测结果.xlsx", index=False)
 print("✅ 预测表保存：TabPFN3_测试集预测结果.xlsx")
 
-# ====================== 【Excel报告生成】★新增实验耗时Sheet ======================
+
 wb = Workbook()
 wb.remove(wb.active)
 
-# ---------- Sheet1：寻优结果汇总 ----------
+
 tuning_headers = ["n_estimators", "train_acc", "train_f1", "val_acc", "val_f1", "train_val_acc_diff"]
 tuning_rows = [
     [
@@ -337,7 +337,7 @@ build_excel_sheet(
     highlight_best_col="val_f1"
 )
 
-# ---------- Sheet2：分类报告（兼容新旧sklearn，无KeyError） ----------
+
 cr_headers = ["岩性类别", "precision", "recall", "f1-score", "support"]
 cr_rows = []
 for class_name in le.classes_:
@@ -381,7 +381,7 @@ build_excel_sheet(
     int_cols={"support"}
 )
 
-# ---------- Sheet3：混淆矩阵 ----------
+
 cm_headers = ["真实岩性"] + [str(x) for x in le.classes_]
 cm_rows = []
 for i, lab in enumerate(le.classes_):
@@ -393,7 +393,7 @@ build_excel_sheet(
     int_cols=set(le.classes_)
 )
 
-# ---------- Sheet4：核心指标汇总 ----------
+
 sum_headers = ["数据集", "Accuracy", "Macro-F1"]
 sum_rows = [
     ["训练集", acc_train, f1_train],
@@ -407,7 +407,7 @@ build_excel_sheet(
     pct_cols={"Accuracy", "Macro-F1"}
 )
 
-# ---------- Sheet5：实验耗时记录【★新增】 ----------
+
 time_headers = ["项目", "耗时(秒)", "耗时(分钟)"]
 time_rows = [
     ["自动寻优（n_estimators遍历）", round(search_elapsed, 2), round(search_elapsed / 60, 2)],
@@ -419,7 +419,7 @@ build_excel_sheet(
     "TabPFN-3 实验计时记录"
 )
 
-# 保存Excel文件
+
 wb.save("TabPFN3_完整实验报告.xlsx")
 print("✅ 实验报告保存：TabPFN3_完整实验报告.xlsx")
 print(f"\n⏱️ 汇总：自动寻优耗时 {search_elapsed:.2f}秒；测试集评估耗时 {test_elapsed:.4f}秒")
