@@ -1,18 +1,5 @@
-# -*- coding: utf-8 -*-
-"""
-LightGBM岩性识别 超参数消融实验【精简版：无基线，仅5组消融】
-修复bug：colsample_bytree基准值从候选列表取值0.7（原来错误0.75不在候选集中）
-方案A：依次固定一个超参数为基准中间值，其余4维笛卡尔网格搜索
-输出全部保存到 F:\消融实验\lightgbm
-输出：每组寻优汇总Excel；总耗时汇总Ablation_Time_Summary.csv
-原始完整参数空间：
-"max_depth": [2, 3, 4, 5, 6],
-"learning_rate": [0.02, 0.04, 0.06, 0.08],
-"n_estimators": [100, 150, 200],
-"subsample": [0.6, 0.7, 0.8],
-"colsample_bytree": [0.6, 0.7, 0.8, 0.9]
-固定：reg_alpha=0，reg_lambda=1，class_weight="balanced"保持不变
-"""
+
+
 import os
 import time
 import pandas as pd
@@ -26,7 +13,7 @@ from lightgbm import log_evaluation, early_stopping
 
 warnings.filterwarnings("ignore")
 
-# ====================== 配置区 ======================
+
 TRAIN_PATH = r"C:\Users\Qsz53\Desktop\训练集.xlsx"
 VAL_PATH   = r"C:\Users\Qsz53\Desktop\验证集.xlsx"
 TEST_PATH  = r"C:\Users\Qsz53\Desktop\测试集.xlsx"
@@ -41,7 +28,7 @@ label_col  = "岩性"
 RANDOM_SEED = 42
 early_stop_round = 20
 
-# 基准中间值（消融固定值，全部取自原始候选集合！）
+
 base_fix = {
     "max_depth":4,
     "learning_rate":0.06,
@@ -50,7 +37,7 @@ base_fix = {
     "colsample_bytree":0.7
 }
 
-# =========5组消融实验配置：固定一个参数，其余4维搜索========
+
 exp_setting_list = [
     {
         "exp_id":"Exp1",
@@ -109,12 +96,12 @@ exp_setting_list = [
     }
 ]
 
-# ============读取并预处理数据（所有实验共用）============
+
 df_train = pd.read_excel(TRAIN_PATH)
 df_val   = pd.read_excel(VAL_PATH)
 df_test  = pd.read_excel(TEST_PATH)
 
-# 井泄露检测
+
 train_wells = set(df_train["井名"].unique())
 test_wells = set(df_test["井名"].unique())
 overlap_wells = test_wells.intersection(train_wells)
@@ -141,7 +128,7 @@ num_class = len(le.classes_)
 
 time_summary = []
 
-# ============循环跑5组消融实验============
+
 for exp_cfg in exp_setting_list:
     exp_id = exp_cfg["exp_id"]
     exp_note = exp_cfg["exp_note"]
@@ -208,7 +195,7 @@ for exp_cfg in exp_setting_list:
             print(f"❌第{idx+1}组训练跳过，错误:{e}")
 
     search_elapsed = time.perf_counter() - search_start
-    # 输出本组寻优汇总excel
+   
     out_excel = os.path.join(OUT_DIR, f"{exp_id}_{exp_note}_寻优汇总.xlsx")
     pd.DataFrame(res_grid_list).to_excel(out_excel, index=False)
 
@@ -227,7 +214,7 @@ for exp_cfg in exp_setting_list:
     print(f"   最优验证Macro‑F1：{best_val_macro_f1:.4f}；最优参数：{best_search_params}")
     print(f"   ✅保存文件：{out_excel}")
 
-# ============输出总耗时汇总csv============
+
 df_time = pd.DataFrame(time_summary)
 summary_csv_path = os.path.join(OUT_DIR, "Ablation_Time_Summary.csv")
 df_time.to_csv(summary_csv_path, index=False, encoding="utf‑8‑sig")
