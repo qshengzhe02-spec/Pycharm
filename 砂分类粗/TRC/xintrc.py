@@ -1,12 +1,4 @@
-# -*- coding: utf-8 -*-
-""" FT-Transformer + TRC（表征矫正模块）岩性多分类
-✅ 手写FT模型（返回embedding），不依赖tab-transformer-pytorch接口
-✅ 【更新】真正笛卡尔积网格搜索：定义各参数候选列表，自动生成全部参数组合
-✅ 步骤：网格搜索选最优FT → 冻结FT → 训练TRC矫正头
-✅ 输出：原生FT 与 FT+TRC 两组对比指标，保存Excel
-✅ 每组参数遍历完成后自动保存调参汇总+每个epoch训练过程Excel
-✅ 计时模块：每组耗时、网格搜索总耗时、TRC耗时、评估耗时
-"""
+
 import pandas as pd
 import numpy as np
 import torch
@@ -16,11 +8,11 @@ from torch.utils.data import Dataset, DataLoader
 from sklearn.preprocessing import LabelEncoder, StandardScaler
 from sklearn.metrics import accuracy_score, f1_score, classification_report, confusion_matrix
 import time
-import itertools # 新增：笛卡尔积生成参数组合
+import itertools 
 import warnings
 warnings.filterwarnings("ignore")
 
-# ====================== 【配置区，自行修改】 ======================
+
 TRAIN_PATH = r"C:\Users\Qsz53\Desktop\训练集.xlsx"
 VAL_PATH   = r"C:\Users\Qsz53\Desktop\验证集.xlsx"
 TEST_PATH  = r"C:\Users\Qsz53\Desktop\测试集.xlsx"
@@ -29,10 +21,10 @@ label_col  = "岩性"
 MAX_EPOCHS = 100
 TRC_EPOCHS = 60
 PATIENCE   = 12
-MAX_COMBINATION = 20  # 限制最多跑多少组，防止组合爆炸，调大/去掉都可以
+MAX_COMBINATION = 20  
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
-# ====================== 手写FT-Transformer ======================
+
 class FTTransformerBlock(nn.Module):
     def __init__(self, d_token, n_heads, attn_drop, ffn_drop):
         super().__init__()
@@ -72,7 +64,7 @@ class FTTransformer(nn.Module):
             return logits, emb
         return logits
 
-# ====================== TRC 矫正模块 ======================
+
 class TRCCorrector(nn.Module):
     def __init__(self, embed_dim, orth_weight=0.01):
         super().__init__()
@@ -107,7 +99,7 @@ class FT_TRC_Model(nn.Module):
         z_corr = self.trc(emb)
         return self.head(z_corr), z_corr
 
-# ====================== 数据集 ======================
+
 class LogDataset(Dataset):
     def __init__(self, X_num, y):
         self.X_num = torch.FloatTensor(X_num)
@@ -117,7 +109,7 @@ class LogDataset(Dataset):
     def __getitem__(self, idx):
         return self.X_num[idx], self.y[idx]
 
-# ====================== 数据加载 ======================
+
 def load_data():
     df_train = pd.read_excel(TRAIN_PATH)
     df_val   = pd.read_excel(VAL_PATH)
@@ -147,12 +139,12 @@ train_loader = DataLoader(LogDataset(X_train,y_train), batch_size=bs, shuffle=Tr
 val_loader   = DataLoader(LogDataset(X_val,y_val),   batch_size=bs, shuffle=False)
 test_loader  = DataLoader(LogDataset(X_test,y_test), batch_size=bs, shuffle=False)
 
-# ====================== Soft类别权重 ======================
+
 unique, counts = np.unique(y_train, return_counts=True)
 total = np.sum(counts)
 soft_weight = torch.tensor(np.log1p(total/counts), dtype=torch.float32).to(device)
 
-# ====================== 【真正网格搜索：定义各超参候选列表】 ======================
+
 search_space = {
     "d_token":    [16, 32, 64],
     "n_blocks":   [1, 2],
@@ -162,19 +154,19 @@ search_space = {
     "ffn_drop":   [0.0, 0.05, 0.1],
     "wd":         [1e-5, 1e-4]
 }
-# 生成笛卡尔积全部组合
+
 keys = list(search_space.keys())
 values = list(search_space.values())
 all_combs = list(itertools.product(*values))
 param_grid = [dict(zip(keys, item)) for item in all_combs]
 
-# 限制最大组合数量，防止跑爆机器
+
 # if len(param_grid) > MAX_COMBINATION:
 #     param_grid = param_grid[:MAX_COMBINATION]
 print(f"✅ 网格搜索生成总组合数：{len(all_combs)}，本次实际运行：{len(param_grid)}")
 print("="*50)
 
-# ====================== 评估函数 ======================
+
 def evaluate(model, loader, is_trc=False):
     model.eval()
     y_true, y_pred = [], []
@@ -189,7 +181,7 @@ def evaluate(model, loader, is_trc=False):
             y_pred.extend(pred.numpy()); y_true.extend(y.cpu().numpy())
     return accuracy_score(y_true,y_pred), f1_score(y_true,y_pred,average="macro")
 
-# ====================== 训练FT函数 ======================
+
 def train_ft_only(params):
     start_t = time.perf_counter()
     ft = FTTransformer(len(num_cols), n_classes, params["d_token"], params["n_blocks"],
@@ -248,7 +240,7 @@ def train_ft_only(params):
     cost = time.perf_counter() - start_t
     return best_ft, params, epoch_history, cost
 
-# ====================== 网格搜索主循环 ======================
+
 grid_search_start = time.perf_counter()
 best_ft_model, best_params = None, None
 best_global_val_f1 = -1
@@ -282,7 +274,7 @@ print(f"\n✅ 网格搜索全部结束！总耗时：{grid_search_total_time:.2f
 print("\n✅ 最优FT参数:", best_params)
 print(f"✅ 最优验证集val_f1:{best_global_val_f1:.4f}")
 
-# ====================== 冻结FT，训练TRC矫正模块 ======================
+
 trc_start = time.perf_counter()
 for param in best_ft_model.parameters():
     param.requires_grad = False
@@ -303,7 +295,7 @@ for ep in range(TRC_EPOCHS):
 trc_total_time = time.perf_counter() - trc_start
 print(f"\n✅ TRC模块训练完成，耗时：{trc_total_time:.2f} s")
 
-# ====================== 评估 ======================
+
 test_eval_start = time.perf_counter()
 ft_tr = evaluate(best_ft_model, train_loader)
 ft_va = evaluate(best_ft_model, val_loader)
@@ -314,7 +306,7 @@ trc_te = evaluate(ft_trc_model, test_loader, True)
 test_eval_time = time.perf_counter() - test_eval_start
 print(f"✅ 全套测试集评估推理耗时：{test_eval_time:.2f} s")
 
-# ====================== 保存FT与FT+TRC对比Excel ======================
+
 res_df = pd.DataFrame([
     {"model":"FT-Transformer",
      "train_acc":ft_tr[0],"train_f1":ft_tr[1],
@@ -335,7 +327,7 @@ res_df.to_excel(r"C:\Users\Qsz53\Desktop\FT_TRC_result.xlsx", index=False)
 print("\n✅ 结果已保存：FT_TRC_result-xin.xlsx")
 print(res_df.round(4))
 
-# ====================== 保存调参汇总Excel ======================
+
 with pd.ExcelWriter(r"C:\Users\Qsz53\Desktop\FT_TRC_xin调参结果.xlsx", engine="openpyxl") as writer:
     sum_cols = ["d_token","n_blocks","n_heads","lr","attn_drop","ffn_drop","wd",
                 "train_acc","train_f1","val_acc","val_f1","train_val_acc_diff","best_epoch","param_train_time_s"]
@@ -356,7 +348,7 @@ with pd.ExcelWriter(r"C:\Users\Qsz53\Desktop\FT_TRC_xin调参结果.xlsx", engin
 
 print("\n✅ 每个参数遍历结果已保存：FT_TRC_xin调参结果.xlsx")
 
-# ====================== 混淆矩阵绘图 ======================
+
 import matplotlib.pyplot as plt
 import seaborn as sns
 
@@ -383,7 +375,7 @@ y_true_test, y_pred_ft = get_pred_labels(best_ft_model, test_loader, is_trc=Fals
 _, y_pred_trc = get_pred_labels(ft_trc_model, test_loader, is_trc=True)
 class_names = le.classes_
 
-# FT混淆矩阵
+
 cm_ft = confusion_matrix(y_true_test, y_pred_ft)
 print("\n==== FT-Transformer 测试集混淆矩阵 ====")
 print(cm_ft)
@@ -397,7 +389,7 @@ plt.tight_layout()
 plt.savefig(r"C:\Users\Qsz53\Desktop\FT_xin混淆矩阵.png", bbox_inches="tight")
 plt.close()
 
-# FT+TRC混淆矩阵
+
 cm_trc = confusion_matrix(y_true_test, y_pred_trc)
 print("\n==== FT-Transformer+TRC 测试集混淆矩阵 ====")
 plt.figure(figsize=(9,7), dpi=300)
